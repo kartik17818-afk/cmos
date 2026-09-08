@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMOS Inverter — Critical Voltages</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-dim:#E7EAE2;
+    --ink:#132018;
+    --ink-soft:#3C4A41;
+    --board:#0C2A20;
+    --board-soft:#123626;
+    --copper:#B3702B;
+    --copper-bright:#D68A3B;
+    --gold:#C7A233;
+    --line:#B7C2B4;
+    --white:#F4F5F0;
+    --danger:#8C3B2C;
+    --radius:2px;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html{ scroll-behavior:smooth; }
+
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:16px;
+    line-height:1.6;
+  }
+
+  h1,h2,h3{
+    font-family:'Space Grotesk', sans-serif;
+    margin:0;
+    color:var(--ink);
+  }
+
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+
+  a{ color:inherit; }
+
+  /* ---------- Layout shells ---------- */
+  .sheet{
+    max-width:920px;
+    margin:0 auto;
+    padding:0 32px;
+  }
+
+  section{ padding:88px 0; }
+  section + section{ border-top:1px solid var(--line); }
+
+  .kicker{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    letter-spacing:0.02em;
+    color:var(--copper);
+    margin-bottom:14px;
+  }
+
+  /* ---------- Header / hero ---------- */
+  header.board{
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.18)),
+      var(--board);
+    color:var(--white);
+    position:relative;
+    overflow:hidden;
+    padding-bottom:64px;
+  }
+
+  header.board::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(var(--board-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--board-soft) 1px, transparent 1px);
+    background-size:36px 36px;
+    opacity:0.55;
+    pointer-events:none;
+  }
+
+  .hero-inner{
+    position:relative;
+    padding-top:64px;
+  }
+
+  .hero-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:#9FB3A6;
+    border-bottom:1px solid rgba(244,245,240,0.18);
+    padding-bottom:18px;
+    margin-bottom:56px;
+  }
+
+  .hero-title{
+    font-size:clamp(40px, 7vw, 68px);
+    line-height:1.02;
+    font-weight:700;
+    letter-spacing:-0.01em;
+    max-width:12ch;
+  }
+
+  .hero-sub{
+    margin-top:22px;
+    font-size:19px;
+    color:#C9D3CB;
+    max-width:46ch;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+
+  .spec-strip{
+    margin-top:64px;
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    border-top:1px solid rgba(244,245,240,0.22);
+    border-left:1px solid rgba(244,245,240,0.22);
+  }
+
+  .spec-cell{
+    border-right:1px solid rgba(244,245,240,0.22);
+    border-bottom:1px solid rgba(244,245,240,0.22);
+    padding:20px 16px;
+  }
+
+  .spec-cell .sym{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:22px;
+    color:var(--copper-bright);
+  }
+
+  .spec-cell .desc{
+    margin-top:8px;
+    font-size:12.5px;
+    color:#AEBDB3;
+    line-height:1.4;
+  }
+
+  /* ---------- Prose ---------- */
+  p.lead{
+    font-size:19px;
+    color:var(--ink-soft);
+    max-width:62ch;
+  }
+
+  p{
+    max-width:66ch;
+    color:var(--ink-soft);
+  }
+
+  .two-col{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:48px;
+    align-items:start;
+  }
+
+  @media (max-width:760px){
+    .two-col{ grid-template-columns:1fr; }
+    .spec-strip{ grid-template-columns:repeat(2,1fr); }
+  }
+
+  /* ---------- Diagram ---------- */
+  .diagram-frame{
+    background:var(--white);
+    border:1px solid var(--line);
+    padding:24px;
+  }
+
+  .diagram-caption{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:14px;
+    border-top:1px dashed var(--line);
+    padding-top:12px;
+  }
+
+  #vtc-point{ cursor:pointer; }
+  .vtc-hit{ cursor:pointer; }
+  .vtc-hit:hover circle.marker{ r:6.5; }
+
+  /* ---------- Definition table ---------- */
+  .def-table{
+    margin-top:40px;
+    border-top:1px solid var(--ink);
+  }
+
+  .def-row{
+    display:grid;
+    grid-template-columns:96px 1fr 1.2fr;
+    gap:24px;
+    padding:22px 0;
+    border-bottom:1px solid var(--line);
+    align-items:start;
+    transition:background-color 0.25s ease;
+  }
+
+  .def-row.active{ background:var(--paper-dim); }
+
+  .def-row .sym{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:20px;
+    color:var(--copper);
+    padding-top:2px;
+  }
+
+  .def-row .name{
+    font-weight:600;
+    font-size:16px;
+  }
+
+  .def-row .name .full{
+    display:block;
+    font-weight:400;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+
+  .def-row .body{
+    font-size:15px;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:760px){
+    .def-row{ grid-template-columns:56px 1fr; }
+    .def-row .body{ grid-column:1 / -1; }
+  }
+
+  /* ---------- Formula blocks ---------- */
+  .formula{
+    background:var(--board);
+    color:var(--white);
+    padding:28px 32px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:16px;
+    letter-spacing:0.01em;
+    margin:28px 0;
+    border-left:4px solid var(--copper-bright);
+    overflow-x:auto;
+  }
+
+  .formula .label{
+    display:block;
+    font-size:12px;
+    color:#9FB3A6;
+    margin-bottom:10px;
+    letter-spacing:0.02em;
+  }
+
+  /* ---------- Margin diagram ---------- */
+  .margin-bars{
+    margin-top:36px;
+    border:1px solid var(--line);
+    background:var(--white);
+    padding:28px;
+  }
+
+  .bar-row{
+    display:grid;
+    grid-template-columns:140px 1fr;
+    align-items:center;
+    gap:18px;
+    padding:10px 0;
+  }
+
+  .bar-track{
+    position:relative;
+    height:34px;
+    background:var(--paper-dim);
+    border:1px solid var(--line);
+  }
+
+  .bar-fill{
+    position:absolute;
+    top:0; bottom:0;
+    background:var(--gold);
+    opacity:0.55;
+  }
+
+  .bar-fill.low{ background:var(--copper); }
+
+  .bar-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+
+  /* ---------- Callout list ---------- */
+  .callouts{
+    margin-top:32px;
+    display:grid;
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+  }
+
+  .callout{
+    background:var(--paper);
+    padding:24px 28px;
+    display:grid;
+    grid-template-columns:32px 1fr;
+    gap:18px;
+  }
+
+  .callout .idx{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--copper);
+    font-size:14px;
+  }
+
+  .callout h3{ font-size:17px; margin-bottom:6px; }
+  .callout p{ margin:0; font-size:14.5px; }
+
+  /* ---------- Footer ---------- */
+  footer{
+    background:var(--board);
+    color:#9FB3A6;
+    padding:48px 0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+  }
+
+  footer .sheet{
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+</style>
+</head>
+<body>
+
+<header class="board">
+  <div class="sheet hero-inner">
+    <div class="hero-top">
+      <span>DIGITAL DESIGN NOTES · NO. 22</span>
+      <span>REV. 2026-09</span>
+    </div>
+    <h1 class="hero-title">CMOS Inverter</h1>
+    <p class="hero-sub">Critical voltages of the CMOS inverter and their significance in digital design — how five numbers on one curve decide whether a chip works at all.</p>
+
+    <div class="spec-strip">
+      <div class="spec-cell"><div class="sym">V<sub>OH</sub></div><div class="desc">Output high level</div></div>
+      <div class="spec-cell"><div class="sym">V<sub>OL</sub></div><div class="desc">Output low level</div></div>
+      <div class="spec-cell"><div class="sym">V<sub>IH</sub></div><div class="desc">Input high threshold</div></div>
+      <div class="spec-cell"><div class="sym">V<sub>IL</sub></div><div class="desc">Input low threshold</div></div>
+      <div class="spec-cell"><div class="sym">V<sub>M</sub></div><div class="desc">Switching threshold</div></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= VTC SECTION ================= -->
+  <section>
+    <div class="sheet">
+      <div class="kicker">01 — THE VOLTAGE TRANSFER CHARACTERISTIC</div>
+      <h2 style="font-size:32px; max-width:20ch;">One curve, five numbers, every logic gate built since</h2>
+      <p class="lead" style="margin-top:20px;">Every CMOS inverter has a voltage transfer characteristic, or VTC: a plot of output voltage against input voltage. It looks like a single smooth drop from high to low, but that drop hides five specific voltages that every digital IC datasheet depends on.</p>
+
+      <div style="margin-top:48px;" class="two-col">
+        <div>
+          <div class="diagram-frame">
+            <svg id="vtc-svg" viewBox="0 0 560 460" width="100%" role="img" aria-label="Voltage transfer characteristic of a CMOS inverter">
+              <!-- axes -->
+              <line x1="70" y1="400" x2="520" y2="400" stroke="#132018" stroke-width="1.5"/>
+              <line x1="70" y1="400" x2="70" y2="30" stroke="#132018" stroke-width="1.5"/>
+              <text x="500" y="420" font-family="IBM Plex Mono" font-size="13" fill="#3C4A41">V_in</text>
+              <text x="34" y="36" font-family="IBM Plex Mono" font-size="13" fill="#3C4A41">V_out</text>
+              <text x="66" y="416" font-family="IBM Plex Mono" font-size="12" fill="#3C4A41" text-anchor="middle">0</text>
+              <text x="520" y="416" font-family="IBM Plex Mono" font-size="12" fill="#3C4A41" text-anchor="middle">V_DD</text>
+
+              <!-- guide lines: VOH -->
+              <line x1="70" y1="52" x2="150" y2="52" stroke="#B7C2B4" stroke-width="1" stroke-dasharray="4 4"/>
+              <text x="60" y="56" font-family="IBM Plex Mono" font-size="12" fill="#B3702B" text-anchor="end">V_OH</text>
+
+              <!-- VOL -->
+              <line x1="70" y1="392" x2="330" y2="392" stroke="#B7C2B4" stroke-width="1" stroke-dasharray="4 4"/>
+              <text x="60" y="396" font-family="IBM Plex Mono" font-size="12" fill="#B3702B" text-anchor="end">V_OL</text>
+
+              <!-- VIL vertical -->
+              <line x1="188" y1="400" x2="188" y2="86" stroke="#B7C2B4" stroke-width="1" stroke-dasharray="4 4"/>
+              <text x="188" y="418" font-family="IBM Plex Mono" font-size="12" fill="#B3702B" text-anchor="middle">V_IL</text>
+
+              <!-- VIH vertical -->
+              <line x1="304" y1="400" x2="304" y2="360" stroke="#B7C2B4" stroke-width="1" stroke-dasharray="4 4"/>
+              <text x="304" y="418" font-family="IBM Plex Mono" font-size="12" fill="#B3702B" text-anchor="middle">V_IH</text>
+
+              <!-- VTC curve -->
+              <path d="M 70,52 C 140,52 165,58 188,86 C 215,150 225,215 246,255 C 268,300 288,345 304,360 C 340,392 430,392 520,392"
+                    fill="none" stroke="#0C2A20" stroke-width="3"/>
+
+              <!-- unity slope point VM -->
+              <g class="vtc-hit" data-point="vm">
+                <circle class="marker" cx="246" cy="255" r="5" fill="#C7A233"/>
+                <text x="256" y="248" font-family="IBM Plex Mono" font-size="13" fill="#132018">V_M</text>
+              </g>
+
+              <g class="vtc-hit" data-point="voh">
+                <circle class="marker" cx="150" cy="52" r="5" fill="#D68A3B"/>
+              </g>
+              <g class="vtc-hit" data-point="vil">
+                <circle class="marker" cx="188" cy="86" r="5" fill="#D68A3B"/>
+              </g>
+              <g class="vtc-hit" data-point="vih">
+                <circle class="marker" cx="304" cy="360" r="5" fill="#D68A3B"/>
+              </g>
+              <g class="vtc-hit" data-point="vol">
+                <circle class="marker" cx="330" cy="392" r="5" fill="#D68A3B"/>
+              </g>
+            </svg>
+            <div class="diagram-caption">Illustrative VTC for V_DD = 5 V. Exact positions shift with transistor sizing and process. Tap a point to jump to its definition below.</div>
+          </div>
+        </div>
+        <div>
+          <p>Near the two ends of the curve, the inverter behaves the way a logic gate is supposed to: a low input gives a firmly high output, and a high input gives a firmly low output. In between lies a narrow transition region, where the output is neither clean logic level. That transition region is where the five critical voltages are defined.</p>
+          <p>Two of them describe the output the gate can guarantee. Two describe the input the gate can still interpret correctly. The fifth marks the exact point where the curve crosses itself — input equals output.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DEFINITIONS ================= -->
+  <section>
+    <div class="sheet">
+      <div class="kicker">02 — THE FIVE CRITICAL VOLTAGES</div>
+      <h2 style="font-size:32px; max-width:22ch;">What each one actually guarantees</h2>
+
+      <div class="def-table">
+        <div class="def-row" data-row="voh">
+          <div class="sym">V<sub>OH</sub></div>
+          <div class="name">Output High<span class="full">Minimum guaranteed output for logic 1</span></div>
+          <div class="body">With input held low, the PMOS transistor is fully on and the NMOS is fully off, pulling the output to a level the next gate will always read as a 1. V<sub>OH</sub> is the floor of that region — it never drops below this value while the input stays low.</div>
+        </div>
+        <div class="def-row" data-row="vol">
+          <div class="sym">V<sub>OL</sub></div>
+          <div class="name">Output Low<span class="full">Maximum guaranteed output for logic 0</span></div>
+          <div class="body">With input held high, the NMOS pulls hard and the PMOS is off, so the output settles near ground. V<sub>OL</sub> is the ceiling of that region — the output never rises above it while the input stays high.</div>
+        </div>
+        <div class="def-row" data-row="vih">
+          <div class="sym">V<sub>IH</sub></div>
+          <div class="name">Input High<span class="full">Minimum input still read as logic 1</span></div>
+          <div class="body">Defined as the input voltage where the slope of the VTC equals −1, on the low-input side is not right — V<sub>IH</sub> sits on the high side: any input at or above it is still interpreted as a solid 1, even though the output has already started to fall.</div>
+        </div>
+        <div class="def-row" data-row="vil">
+          <div class="sym">V<sub>IL</sub></div>
+          <div class="name">Input Low<span class="full">Maximum input still read as logic 0</span></div>
+          <div class="body">The other point where the VTC slope equals −1, but on the low-input side. Any input at or below it is still safely interpreted as a 0, even though the output has begun to droop from V<sub>OH</sub>.</div>
+        </div>
+        <div class="def-row" data-row="vm">
+          <div class="sym">V<sub>M</sub></div>
+          <div class="name">Switching Threshold<span class="full">Where V_out = V_in</span></div>
+          <div class="body">The single point where the curve crosses the line V<sub>out</sub> = V<sub>in</sub>. It marks the input voltage at which the gate itself is undecided, and it is set almost entirely by the relative drive strength of the PMOS and NMOS — their width-to-length ratios.</div>
+        </div>
+      </div>
+
+      <div class="formula">
+        <span class="label">SWITCHING THRESHOLD, MATCHED INVERTER (k_n = k_p)</span>
+        V_M = V_DD / 2
+      </div>
+      <p>Real inverters rarely land exactly there, because electrons move faster than holes. Designers compensate by widening the PMOS relative to the NMOS — typically by a factor of two to three — to pull V<sub>M</sub> back toward the midpoint.</p>
+    </div>
+  </section>
+
+  <!-- ================= NOISE MARGINS ================= -->
+  <section>
+    <div class="sheet">
+      <div class="kicker">03 — NOISE MARGINS</div>
+      <h2 style="font-size:32px; max-width:22ch;">The gap between "guaranteed" and "misread"</h2>
+      <p class="lead" style="margin-top:20px;">The four outer voltages combine into two numbers that matter more than any of them alone: how much a signal can be corrupted before a gate reads it wrong.</p>
+
+      <div class="formula">
+        <span class="label">NOISE MARGIN, HIGH</span>
+        NM_H = V_OH − V_IH
+      </div>
+      <div class="formula">
+        <span class="label">NOISE MARGIN, LOW</span>
+        NM_L = V_IL − V_OL
+      </div>
+
+      <div class="margin-bars">
+        <div class="bar-row">
+          <div class="bar-label">HIGH MARGIN</div>
+          <div class="bar-track"><div class="bar-fill" style="left:5%; width:52%;"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">LOW MARGIN</div>
+          <div class="bar-track"><div class="bar-fill low" style="left:5%; width:38%;"></div></div>
+        </div>
+      </div>
+
+      <p style="margin-top:32px;">A driving gate's output has to survive a trip down a wire — resistance, capacitive coupling from a neighboring line, a bounce on the ground rail — before it reaches the next gate's input. As long as the corruption stays inside the noise margin, the receiving gate still reads the correct logic level. Once it doesn't, a 1 can arrive looking like a 0, and the error propagates through everything downstream.</p>
+    </div>
+  </section>
+
+  <!-- ================= SIGNIFICANCE ================= -->
+  <section>
+    <div class="sheet">
+      <div class="kicker">04 — WHY THIS MATTERS IN PRACTICE</div>
+      <h2 style="font-size:32px; max-width:22ch;">Five voltages, whole-chip consequences</h2>
+
+      <div class="callouts">
+        <div class="callout">
+          <div class="idx">A</div>
+          <div><h3>Sizing decisions trace back here</h3><p>A designer choosing transistor widths is really choosing where V<sub>M</sub> sits and how wide the noise margins are — the two things these five voltages exist to describe.</p></div>
+        </div>
+        <div class="callout">
+          <div class="idx">B</div>
+          <div><h3>Cascaded gates compound small errors</h3><p>A chip is millions of inverting stages in series. If each one shaves a little off the noise margin, the last gate in a long chain sees almost none of it left.</p></div>
+        </div>
+        <div class="callout">
+          <div class="idx">C</div>
+          <div><h3>Scaling squeezes the margins</h3><p>As supply voltage drops with each process generation to save power, V<sub>OH</sub>, V<sub>OL</sub>, V<sub>IH</sub>, and V<sub>IL</sub> all move closer together, and the noise margins that used to be generous get tight.</p></div>
+        </div>
+        <div class="callout">
+          <div class="idx">D</div>
+          <div><h3>Mixed-signal and noisy environments raise the stakes</h3><p>Digital logic sitting next to analog circuitry, power switching, or long off-chip traces needs wider margins than an isolated digital block ever would.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="sheet">
+    <span>CMOS INVERTER — CRITICAL VOLTAGES</span>
+    <span>ILLUSTRATIVE VALUES · ACTUAL LEVELS VARY BY PROCESS AND SIZING</span>
+  </div>
+</footer>
+
+<script>
+  const rows = document.querySelectorAll('.def-row');
+  const hits = document.querySelectorAll('.vtc-hit');
+
+  hits.forEach(hit => {
+    hit.addEventListener('click', () => {
+      const key = hit.getAttribute('data-point');
+      rows.forEach(r => r.classList.toggle('active', r.getAttribute('data-row') === key));
+      const target = document.querySelector('.def-row[data-row="' + key + '"]');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+</script>
+
+</body>
+</html>
